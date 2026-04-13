@@ -140,9 +140,30 @@ app.post('/api/refresh', async (req, res) => {
 
 // API: Debug info
 app.get('/api/debug', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const secretPath = path.join(__dirname, 'gemini.secret.json');
+  let fileInfo = 'not found';
+  try {
+    if (fs.existsSync(secretPath)) {
+      fileInfo = 'exists at ' + secretPath;
+    }
+  } catch(e) { fileInfo = 'error: ' + e.message; }
+  
+  // Also check /etc/secrets (Render mounts there sometimes)
+  let etcInfo = 'not found';
+  try {
+    if (fs.existsSync('/etc/secrets/gemini.secret.json')) {
+      etcInfo = 'exists at /etc/secrets/gemini.secret.json';
+    }
+  } catch(e) {}
+  
   res.json({
     geminiKeySet: !!process.env.GEMINI_API_KEY,
     geminiKeyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE',
+    secretFile: fileInfo,
+    etcSecrets: etcInfo,
+    dirname: __dirname,
     nodeEnv: process.env.NODE_ENV || 'not set'
   });
 });
