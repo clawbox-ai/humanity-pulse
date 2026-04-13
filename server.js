@@ -130,11 +130,36 @@ app.get('/api/dashboard', (req, res) => {
 // API: Test Gemini with one story
 app.get('/api/test-gemini', async (req, res) => {
   try {
-    const story = db.prepare('SELECT id, title, description FROM stories WHERE sentiment_score IS NULL LIMIT 1').get();
+    // Get a real news story (skip short/garbage titles)
+    const story = db.prepare('SELECT id, title, description FROM stories WHERE sentiment_score IS NULL AND length(title) > 20 ORDER BY RANDOM() LIMIT 1').get();
     if (!story) return res.json({ error: 'no unrated stories' });
+    
     const text = story.description ? `${story.title}\n\n${story.description}` : story.title;
-    const result = await analyzeSentiment(story.title, story.description);
-    res.json({ story: story.title, result, geminiKey: geminiKey ? geminiKey.slice(0,8) + '...' : 'NONE' });
+    
+    // Call Gemini directly to see raw response
+    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+    const gemRes = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Rate this news story from -10 to +10 for humanity impact. Respond ONLY with: SCORE: <number> REASON: <one sentence>\n\nStory: ${text}` }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 200 }
+      })
+    });
+    
+    const rawBody = await gemRes.text();
+    let parsed;
+    try { parsed = JSON.parse(rawBody); } catch(e) { parsed = null; }
+    
+    const geminiText = parsed?.candidates?.[0]?.content?.parts?.[0]?.text || 'NO TEXT';
+    
+    res.json({ 
+      story: story.title.slice(0, 100),
+      geminiStatus: gemRes.status,
+      geminiText: geminiText,
+      geminiRaw: rawBody.slice(0, 500),
+      result: await analyzeSentiment(story.title, story.description)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
