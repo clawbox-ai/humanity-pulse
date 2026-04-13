@@ -2,57 +2,94 @@ const fetch = require('node-fetch');
 const db = require('./db');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const MODEL = 'qwen2.5:1.5b'; // Available local model
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const MODEL = 'qwen2.5:1.5b'; // Local Ollama model
 
-async function analyzeSentiment(title, description) {
-  const model = module.exports.MODEL || MODEL;
-  const text = description ? `${title}\n\n${description}` : title;
-  
-  const prompt = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
+// Auto-detect: use Ollama if available, otherwise Gemini
+let useGemini = false;
+let geminiKey = process.env.GEMINI_API_KEY || '';
+
+const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
 
 Consider: wars, pandemics, climate change, scientific breakthroughs, human rights advances, technological progress, economic stability, democratic governance, etc.
-
-Story: ${text}
 
 Respond in EXACTLY this format (no other text):
 SCORE: <number between -10 and 10>
 REASON: <one sentence explanation>`;
 
+function parseResponse(response) {
+  const scoreMatch = response.match(/SCORE:\s*([+-]?\d+\.?\d*)/i);
+  const reasonMatch = response.match(/REASON:\s*(.+)/i);
+
+  if (!scoreMatch) {
+    console.log(`  [WARN] No score parsed from: ${response.slice(0, 80)}`);
+    return null;
+  }
+
+  let score = parseFloat(scoreMatch[1]);
+  score = Math.max(-10, Math.min(10, score));
+
+  return {
+    score: Math.round(score * 10) / 10,
+    reason: reasonMatch ? reasonMatch[1].trim() : 'No reason provided'
+  };
+}
+
+async function analyzeViaOllama(text) {
+  const model = module.exports.MODEL || MODEL;
+  const prompt = `${SENTIMENT_PROMPT}\n\nStory: ${text}`;
+  
+  const res = await fetch(OLLAMA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      options: { temperature: 0.3, num_predict: 150 }
+    })
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return parseResponse(data.response || '');
+}
+
+async function analyzeViaGemini(text) {
+  if (!geminiKey) return null;
+  
+  const res = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `${SENTIMENT_PROMPT}\n\nStory: ${text}` }] }],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 150 }
+    })
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  const response = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return parseResponse(response);
+}
+
+async function analyzeSentiment(title, description) {
+  const text = description ? `${title}\n\n${description}` : title;
+  
   try {
-    const res = await fetch(OLLAMA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        options: { temperature: 0.3, num_predict: 150 }
-      })
-    });
-
-    if (!res.ok) {
-      console.error(`  Ollama error: ${res.status}`);
-      return null;
+    if (useGemini) {
+      const result = await analyzeViaGemini(text);
+      if (result) return result;
+      // Fallback to Ollama if Gemini fails
+      console.log('  Gemini failed, trying Ollama...');
     }
-
-    const data = await res.json();
-    const response = data.response || '';
-
-    const scoreMatch = response.match(/SCORE:\s*([+-]?\d+\.?\d*)/i);
-    const reasonMatch = response.match(/REASON:\s*(.+)/i);
-
-    if (!scoreMatch) {
-      console.log(`  [WARN] No score parsed from: ${response.slice(0, 80)}`);
-      return null;
+    
+    if (!useGemini || true) {
+      const result = await analyzeViaOllama(text);
+      if (result) return result;
     }
-
-    let score = parseFloat(scoreMatch[1]);
-    score = Math.max(-10, Math.min(10, score));
-
-    return {
-      score: Math.round(score * 10) / 10,
-      reason: reasonMatch ? reasonMatch[1].trim() : 'No reason provided'
-    };
+    
+    return null;
   } catch (err) {
     console.error(`  Sentiment error: ${err.message}`);
     return null;
@@ -131,25 +168,31 @@ function takeSnapshot() {
 async function runAnalysis() {
   console.log(`\n🧠 [${new Date().toISOString()}] Starting sentiment analysis...`);
   
-  // Check if Ollama is available
-  try {
-    const res = await fetch('http://localhost:11434/api/tags');
-    if (!res.ok) throw new Error('Ollama not responding');
-    const models = await res.json();
-    const modelNames = (models.models || []).map(m => m.name);
-    console.log(`  Available models: ${modelNames.join(', ')}`);
-    
-    // Auto-select best available model if our preferred isn't there
-    if (!modelNames.some(m => m.startsWith(MODEL.split(':')[0]))) {
-      if (modelNames.length > 0) {
-        // Prefer larger models, fall back to whatever is available
-        module.exports.MODEL = modelNames[0];
-        console.log(`  Using available model: ${modelNames[0]}`);
+  // Check for Gemini API key (for cloud deployment)
+  if (geminiKey) {
+    console.log('  Using Gemini API (cloud)');
+    useGemini = true;
+  } else {
+    // Check if Ollama is available (for local deployment)
+    try {
+      const res = await fetch('http://localhost:11434/api/tags');
+      if (!res.ok) throw new Error('Ollama not responding');
+      const models = await res.json();
+      const modelNames = (models.models || []).map(m => m.name);
+      console.log(`  Available models: ${modelNames.join(', ')}`);
+      
+      // Auto-select best available model
+      if (!modelNames.some(m => m.startsWith(MODEL.split(':')[0]))) {
+        if (modelNames.length > 0) {
+          module.exports.MODEL = modelNames[0];
+          console.log(`  Using available model: ${modelNames[0]}`);
+        }
       }
+    } catch (err) {
+      console.error('❌ Neither Gemini API key nor Ollama available!');
+      console.error('   Set GEMINI_API_KEY env var or start Ollama on localhost:11434');
+      return 0;
     }
-  } catch (err) {
-    console.error('❌ Ollama not available! Make sure it\'s running on localhost:11434');
-    return 0;
   }
 
   const analyzed = await analyzeUnrated();

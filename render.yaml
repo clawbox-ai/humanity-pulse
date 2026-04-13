@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: humanity-pulse
+    runtime: node
+    buildCommand: npm install
+    startCommand: bash start.sh
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
+    plan: free
