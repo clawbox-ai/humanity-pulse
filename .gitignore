@@ -3,4 +3,4 @@ credentials/
 *.db
 *.db-shm
 *.db-wal
-gemini.secret.json
+gemini.secret.json.env
