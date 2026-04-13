@@ -19,13 +19,14 @@ if (!geminiKey) {
       const secret = JSON.parse(fs.readFileSync(secretPath, 'utf8'));
       geminiKey = secret.apiKey || '';
     }
-  if (geminiKey) {
-    useGemini = true;
-    console.log('🔑 Gemini API key found — using Gemini for analysis');
-  } else if (!geminiKey) {
-    console.log('🔑 No Gemini key — will use Ollama if available');
-  }
-} catch (e) {}
+  } catch (e) {}
+}
+
+if (geminiKey) {
+  useGemini = true;
+  console.log('🔑 Gemini API key found — using Gemini for analysis');
+} else {
+  console.log('🔑 No Gemini key — will use Ollama if available');
 }
 
 const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).

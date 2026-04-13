@@ -138,6 +138,15 @@ app.post('/api/refresh', async (req, res) => {
   }
 });
 
+// API: Debug info
+app.get('/api/debug', (req, res) => {
+  res.json({
+    geminiKeySet: !!process.env.GEMINI_API_KEY,
+    geminiKeyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE',
+    nodeEnv: process.env.NODE_ENV || 'not set'
+  });
+});
+
 // API: Stats summary
 app.get('/api/stats', (req, res) => {
   const total = db.prepare('SELECT COUNT(*) as count FROM stories').get();
