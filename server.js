@@ -150,8 +150,8 @@ app.get('/api/stats', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🌍 Humanity Pulse running on http://localhost:${PORT}`);
   
-  // Auto-refresh every 20 minutes
-  const INTERVAL_MS = 20 * 60 * 1000;
+  // Auto-refresh every 30 minutes (keeps Gemini API under free tier limits)
+  const INTERVAL_MS = 30 * 60 * 1000;
   
   async function autoRefresh() {
     console.log(`\n⏰ [${new Date().toISOString()}] Auto-refresh triggered`);
