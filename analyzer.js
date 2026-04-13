@@ -2,12 +2,25 @@ const fetch = require('node-fetch');
 const db = require('./db');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 const MODEL = 'qwen2.5:1.5b'; // Local Ollama model
 
 // Auto-detect: use Ollama if available, otherwise Gemini
 let useGemini = false;
 let geminiKey = process.env.GEMINI_API_KEY || '';
+
+// Try loading from secret file if no env var
+if (!geminiKey) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const secretPath = path.join(__dirname, 'gemini.secret.json');
+    if (fs.existsSync(secretPath)) {
+      const secret = JSON.parse(fs.readFileSync(secretPath, 'utf8'));
+      geminiKey = secret.apiKey || '';
+    }
+  } catch (e) {}
+}
 
 const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
 
