@@ -19,7 +19,13 @@ if (!geminiKey) {
       const secret = JSON.parse(fs.readFileSync(secretPath, 'utf8'));
       geminiKey = secret.apiKey || '';
     }
-  } catch (e) {}
+  if (geminiKey) {
+    useGemini = true;
+    console.log('🔑 Gemini API key found — using Gemini for analysis');
+  } else if (!geminiKey) {
+    console.log('🔑 No Gemini key — will use Ollama if available');
+  }
+} catch (e) {}
 }
 
 const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
@@ -76,7 +82,7 @@ async function analyzeViaGemini(text) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: `${SENTIMENT_PROMPT}\n\nStory: ${text}` }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 150 }
+      generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
     })
   });
 
@@ -90,17 +96,16 @@ async function analyzeSentiment(title, description) {
   const text = description ? `${title}\n\n${description}` : title;
   
   try {
-    if (useGemini) {
+    // Try Gemini first (works on Render/cloud)
+    if (geminiKey) {
       const result = await analyzeViaGemini(text);
       if (result) return result;
-      // Fallback to Ollama if Gemini fails
       console.log('  Gemini failed, trying Ollama...');
     }
     
-    if (!useGemini || true) {
-      const result = await analyzeViaOllama(text);
-      if (result) return result;
-    }
+    // Fallback to Ollama (works locally)
+    const result = await analyzeViaOllama(text);
+    if (result) return result;
     
     return null;
   } catch (err) {
@@ -123,7 +128,7 @@ async function analyzeUnrated(limit = 50) {
     return 0;
   }
 
-  console.log(`\n🧠 Analyzing ${stories.length} unrated stories with ${MODEL}...`);
+  console.log(`\n🧠 Analyzing ${stories.length} unrated stories with ${geminiKey ? 'Gemini 2.5 Flash Lite' : MODEL}...`);
 
   let analyzed = 0;
   const update = db.prepare(`
@@ -143,8 +148,8 @@ async function analyzeUnrated(limit = 50) {
       console.log(`  ${emoji} ${result.score > 0 ? '+' : ''}${result.score} | ${story.title.slice(0, 60)}...`);
     }
 
-    // Small delay to not hammer Ollama
-    await new Promise(r => setTimeout(r, 200));
+    // Rate limit: slower for Gemini, faster for local Ollama
+    await new Promise(r => setTimeout(r, geminiKey ? 2000 : 200));
   }
 
   console.log(`  Analyzed: ${analyzed}/${stories.length}`);
