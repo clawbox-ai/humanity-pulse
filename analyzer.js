@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+require('dotenv').config();
 const db = require('./db');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
@@ -8,16 +9,21 @@ const MODEL = 'qwen2.5:1.5b'; // Local Ollama model
 // Auto-detect: use Ollama if available, otherwise Gemini
 let useGemini = false;
 let geminiKey = process.env.GEMINI_API_KEY || '';
-
-// Try loading from secret file if no env var
 if (!geminiKey) {
   try {
     const fs = require('fs');
     const path = require('path');
-    const secretPath = path.join(__dirname, 'gemini.secret.json');
-    if (fs.existsSync(secretPath)) {
-      const secret = JSON.parse(fs.readFileSync(secretPath, 'utf8'));
-      geminiKey = secret.apiKey || '';
+    // Check multiple paths where Render might mount secret files
+    const paths = [
+      path.join(__dirname, 'gemini.secret.json'),
+      '/etc/secrets/gemini.secret.json'
+    ];
+    for (const p of paths) {
+      if (fs.existsSync(p)) {
+        const secret = JSON.parse(fs.readFileSync(p, 'utf8'));
+        geminiKey = secret.apiKey || '';
+        if (geminiKey) break;
+      }
     }
   } catch (e) {}
 }
