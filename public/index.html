@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Humanity Pulse — Global Sentiment Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #161622;
+      --bg-hover: #1e1e2e;
+      --border: #2a2a3a;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a0;
+      --text-muted: #555570;
+      --positive: #00e676;
+      --positive-dim: rgba(0,230,118,0.15);
+      --negative: #ff1744;
+      --negative-dim: rgba(255,23,68,0.15);
+      --neutral: #ffc107;
+      --accent: #7c4dff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,15,0.8);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--positive), var(--accent));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--text-muted); font-weight: 400; }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--positive);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Main Layout */
+    .main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px 40px;
+    }
+
+    /* Hero Score */
+    .hero {
+      text-align: center;
+      padding: 48px 0 40px;
+    }
+
+    .hero-label {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .hero-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 140px;
+      font-weight: 700;
+      line-height: 1;
+      margin: 16px 0;
+      transition: color 0.5s;
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    .hero-bar {
+      width: 300px;
+      height: 6px;
+      background: var(--bg-secondary);
+      border-radius: 3px;
+      margin: 24px auto 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.8s, background 0.5s;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+
+    .stat-card:hover { border-color: var(--text-muted); }
+
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+
+    .card-badge {
+      font-size: 11px;
+      background: var(--bg-secondary);
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: var(--text-muted);
+    }
+
+    .card-body { padding: 24px; }
+
+    .card-full { grid-column: 1 / -1; }
+
+    /* Timeline Chart */
+    .chart-container { position: relative; height: 280px; }
+
+    /* Story Feed */
+    .story-list { max-height: 600px; overflow-y: auto; }
+
+    .story-item {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      transition: background 0.2s;
+    }
+
+    .story-item:hover { background: var(--bg-hover); }
+    .story-item:last-child { border-bottom: none; }
+
+    .story-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 18px;
+      min-width: 48px;
+      text-align: center;
+      padding: 6px 0;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .story-score.positive { color: var(--positive); background: var(--positive-dim); }
+    .story-score.negative { color: var(--negative); background: var(--negative-dim); }
+    .story-score.neutral { color: var(--neutral); background: rgba(255,193,7,0.15); }
+
+    .story-content { flex: 1; min-width: 0; }
+
+    .story-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .story-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .story-title a:hover { color: var(--accent); }
+
+    .story-reason {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .story-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .story-source {
+      background: var(--bg-secondary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 8px;
+    }
+
+    /* Distribution */
+    .dist-bars { padding: 0; }
+
+    .dist-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 24px;
+      gap: 12px;
+    }
+
+    .dist-label {
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .dist-bar-track {
+      flex: 1;
+      height: 24px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .dist-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s;
+      min-width: 2px;
+    }
+
+    .dist-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      min-width: 30px;
+    }
+
+    /* Top Stories */
+    .top-stories { padding: 0; }
+    .top-story {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .top-story:last-child { border-bottom: none; }
+
+    .top-rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      min-width: 32px;
+    }
+
+    .top-info { flex: 1; }
+    .top-title { font-size: 13px; line-height: 1.3; }
+    .top-source { font-size: 11px; color: var(--text-muted); }
+
+    /* Trend indicator */
+    .trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .trend.up { color: var(--positive); }
+    .trend.down { color: var(--negative); }
+    .trend.flat { color: var(--text-muted); }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Refresh button */
+    .refresh-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .refresh-btn:hover { opacity: 0.8; }
+    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header { padding: 16px 20px; }
+      .main { padding: 20px; }
+      .hero-score { font-size: 80px; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">🌍</div>
+      <div class="logo-text">Humanity<span>Pulse</span></div>
+    </div>
+    <div class="header-meta">
+      <div class="status-dot"></div>
+      <span id="last-updated">Loading...</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Hero Score -->
+    <div class="hero">
+      <div class="hero-label">Global Humanity Sentiment</div>
+      <div class="hero-score" id="hero-score">—</div>
+      <div class="hero-subtitle" id="hero-subtitle">Analyzing world events...</div>
+      <div class="hero-bar">
+        <div class="hero-bar-fill" id="hero-bar"></div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Stories Analyzed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: var(--positive)" id="stat-positive">0</div>
+        <div class="stat-label">Positive</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: var(--negative)" id="stat-negative">0</div>
+        <div class="stat-label">Negative</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-trend">—</div>
+        <div class="stat-label">Trend</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid">
+      <!-- Timeline -->
+      <div class="card card-full">
+        <div class="card-header">
+          <div class="card-title">📈 Sentiment Over Time</div>
+          <div class="card-badge" id="timeline-badge">7 days</div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="timeline-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distribution -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Score Distribution</div>
+        </div>
+        <div class="card-body dist-bars" id="distribution"></div>
+      </div>
+
+      <!-- Good vs Bad -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚖️ Positive vs Negative</div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:240px">
+            <canvas id="pie-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Positive -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🌟 Best for Humanity</div>
+        </div>
+        <div class="top-stories" id="top-positive"></div>
+      </div>
+
+      <!-- Top Negative -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚠️ Worst for Humanity</div>
+        </div>
+        <div class="top-stories" id="top-negative"></div>
+      </div>
+
+      <!-- Source Breakdown -->
+      <div class="card card-full">
+        <div class="card-header">
+          <div class="card-title">📡 Sources</div>
+          <div class="card-badge" id="source-count">0 sources</div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:200px">
+            <canvas id="source-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Story Feed -->
+    <div class="card card-full">
+      <div class="card-header">
+        <div class="card-title">📰 Latest Stories</div>
+        <div class="card-badge" id="feed-count">0 stories</div>
+      </div>
+      <div class="story-list" id="story-feed">
+        <div class="loading"><div class="spinner"></div>Loading stories...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let data = null;
+    let timelineChart = null;
+    let pieChart = null;
+    let sourceChart = null;
+
+    function scoreColor(score) {
+      if (score > 0.5) return 'var(--positive)';
+      if (score < -0.5) return 'var(--negative)';
+      return 'var(--neutral)';
+    }
+
+    function scoreClass(score) {
+      if (score > 0.5) return 'positive';
+      if (score < -0.5) return 'negative';
+      return 'neutral';
+    }
+
+    function formatScore(score) {
+      const s = score.toFixed(1);
+      return score > 0 ? '+' + s : s;
+    }
+
+    function timeAgo(dateStr) {
+      const now = new Date();
+      const d = new Date(dateStr + 'Z');
+      const diff = (now - d) / 1000;
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch('/api/dashboard');
+        data = await res.json();
+        render();
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      }
+    }
+
+    async function refreshData() {
+      const btn = document.getElementById('refresh-btn');
+      btn.disabled = true;
+      btn.textContent = '⟳ Refreshing...';
+      try {
+        await fetch('/api/refresh', { method: 'POST' });
+        await loadData();
+      } catch (err) {
+        console.error('Refresh failed:', err);
+      }
+      btn.disabled = false;
+      btn.textContent = '↻ Refresh';
+    }
+
+    function render() {
+      if (!data) return;
+
+      const { overall, recentStories, timeline, dailyTimeline, distribution, sourceBreakdown, topPositive, topNegative } = data;
+
+      // Hero
+      const avg = overall.avg_score || 0;
+      const heroEl = document.getElementById('hero-score');
+      heroEl.textContent = formatScore(avg);
+      heroEl.style.color = scoreColor(avg);
+
+      const pct = ((avg + 10) / 20) * 100;
+      const bar = document.getElementById('hero-bar');
+      bar.style.width = pct + '%';
+      bar.style.background = `linear-gradient(90deg, var(--negative), ${scoreColor(avg)})`;
+
+      let verdict = 'Neutral — Humanity holds steady';
+      if (avg > 3) verdict = 'Hopeful — Humanity trending upward 🌅';
+      else if (avg > 1) verdict = 'Cautiously optimistic — Good news outweighs bad';
+      else if (avg > -1) verdict = 'Mixed — The world balances on a knife\'s edge';
+      else if (avg > -3) verdict = 'Concerning — Dark times, but not catastrophic';
+      else verdict = 'Crisis — Humanity under severe strain';
+      document.getElementById('hero-subtitle').textContent = verdict;
+
+      // Stats
+      document.getElementById('stat-total').textContent = overall.total;
+      document.getElementById('stat-positive').textContent = overall.positive;
+      document.getElementById('stat-negative').textContent = overall.negative;
+
+      // Trend
+      if (timeline.length >= 2) {
+        const recent = timeline.slice(-6).reduce((s, t) => s + t.avg_score, 0) / Math.min(6, timeline.slice(-6).length);
+        const older = timeline.slice(-12, -6).reduce((s, t) => s + t.avg_score, 0) / Math.min(6, timeline.slice(-12, -6).length || 1);
+        const trendVal = recent - older;
+        const trendEl = document.getElementById('stat-trend');
+        if (Math.abs(trendVal) < 0.3) {
+          trendEl.innerHTML = '<span class="trend flat">→ Flat</span>';
+        } else if (trendVal > 0) {
+          trendEl.innerHTML = `<span class="trend up">↑ +${trendVal.toFixed(1)}</span>`;
+        } else {
+          trendEl.innerHTML = `<span class="trend down">↓ ${trendVal.toFixed(1)}</span>`;
+        }
+      }
+
+      // Last updated
+      document.getElementById('last-updated').textContent = 
+        'Updated ' + new Date(data.lastUpdated).toLocaleTimeString();
+
+      // Timeline chart
+      renderTimeline(timeline);
+
+      // Distribution
+      renderDistribution(distribution);
+
+      // Pie chart
+      renderPieChart(overall);
+
+      // Source chart
+      renderSourceChart(sourceBreakdown);
+
+      // Top stories
+      renderTopStories('top-positive', topPositive, 'positive');
+      renderTopStories('top-negative', topNegative, 'negative');
+
+      // Story feed
+      renderStoryFeed(recentStories);
+    }
+
+    function renderTimeline(timeline) {
+      const ctx = document.getElementById('timeline-chart').getContext('2d');
+      
+      const labels = timeline.map(t => {
+        const d = new Date(t.hour + ':00Z');
+        return d.toLocaleDateString('en', { month: 'short', day: 'numeric' }) + ' ' + 
+               d.toLocaleTimeString('en', { hour: 'numeric', hour12: true });
+      });
+      const scores = timeline.map(t => t.avg_score);
+
+      // Linear regression for trend line
+      const n = scores.length;
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < n; i++) {
+        sumX += i; sumY += scores[i];
+        sumXY += i * scores[i]; sumXX += i * i;
+      }
+      const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX || 1);
+      const intercept = (sumY - slope * sumX) / n;
+      const trendLine = scores.map((_, i) => intercept + slope * i);
+
+      // Extrapolation (extend trend 6 points)
+      const extraPoints = 6;
+      const futureLabels = [];
+      const futureTrend = [];
+      for (let i = 0; i < extraPoints; i++) {
+        const idx = n + i;
+        futureTrend.push(intercept + slope * idx);
+        const d = new Date();
+        d.setHours(d.getHours() + (i + 1));
+        futureLabels.push(d.toLocaleDateString('en', { month: 'short', day: 'numeric' }));
+      }
+
+      if (timelineChart) timelineChart.destroy();
+      
+      timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [...labels, ...futureLabels],
+          datasets: [
+            {
+              label: 'Sentiment',
+              data: scores,
+              borderColor: '#7c4dff',
+              backgroundColor: 'rgba(124,77,255,0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+              pointBackgroundColor: scores.map(s => s > 0 ? '#00e676' : s < 0 ? '#ff1744' : '#ffc107'),
+            },
+            {
+              label: 'Trend',
+              data: [...trendLine, ...futureTrend],
+              borderColor: 'rgba(255,255,255,0.2)',
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: false,
+              tension: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            annotation: {}
+          },
+          scales: {
+            y: {
+              min: -10,
+              max: 10,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8888a0', font: { family: 'JetBrains Mono' } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#555570', maxTicksLimit: 12, font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderDistribution(distribution) {
+      const container = document.getElementById('distribution');
+      const maxCount = Math.max(...distribution.map(d => d.count), 1);
+      
+      const colorMap = {
+        '-10 to -7': '#ff1744',
+        '-7 to -4': '#ff5252',
+        '-4 to -1': '#ff8a80',
+        '-1 to 1': '#ffc107',
+        '1-4': '#69f0ae',
+        '4-7': '#00e676',
+        '7-10': '#00c853'
+      };
+
+      container.innerHTML = distribution.map(d => {
+        const pct = (d.count / maxCount) * 100;
+        const color = colorMap[d.bucket] || '#7c4dff';
+        return `
+          <div class="dist-row">
+            <div class="dist-label">${d.bucket}</div>
+            <div class="dist-bar-track">
+              <div class="dist-bar-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <div class="dist-count">${d.count}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPieChart(overall) {
+      const ctx = document.getElementById('pie-chart').getContext('2d');
+      if (pieChart) pieChart.destroy();
+
+      pieChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Positive', 'Negative', 'Neutral'],
+          datasets: [{
+            data: [overall.positive, overall.negative, overall.neutral],
+            backgroundColor: ['#00e676', '#ff1744', '#ffc107'],
+            borderWidth: 0,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#8888a0', padding: 16, font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderSourceChart(sourceBreakdown) {
+      const ctx = document.getElementById('source-chart').getContext('2d');
+      if (sourceChart) sourceChart.destroy();
+
+      document.getElementById('source-count').textContent = sourceBreakdown.length + ' sources';
+
+      sourceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sourceBreakdown.map(s => s.source),
+          datasets: [{
+            label: 'Avg Sentiment',
+            data: sourceBreakdown.map(s => s.avg_score),
+            backgroundColor: sourceBreakdown.map(s => s.avg_score > 0 ? 'rgba(0,230,118,0.7)' : 'rgba(255,23,68,0.7)'),
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              min: -10,
+              max: 10,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8888a0', font: { family: 'JetBrains Mono' } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#8888a0', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderTopStories(containerId, stories, type) {
+      const container = document.getElementById(containerId);
+      const emoji = type === 'positive' ? '🌟' : '⚠️';
+      
+      if (!stories || stories.length === 0) {
+        container.innerHTML = '<div style="padding:24px;color:var(--text-muted);text-align:center">No stories yet</div>';
+        return;
+      }
+
+      container.innerHTML = stories.map((s, i) => `
+        <div class="top-story">
+          <div class="top-rank" style="color:${scoreColor(s.sentiment_score)}">#${i+1}</div>
+          <div class="top-info">
+            <div class="top-title">${s.title}</div>
+            <div class="top-source">${s.source} · ${formatScore(s.sentiment_score)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderStoryFeed(stories) {
+      const container = document.getElementById('story-feed');
+      document.getElementById('feed-count').textContent = stories.length + ' stories';
+
+      if (!stories || stories.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No stories analyzed yet. Click Refresh to start.</div>';
+        return;
+      }
+
+      container.innerHTML = stories.map(s => `
+        <div class="story-item">
+          <div class="story-score ${scoreClass(s.sentiment_score)}">${formatScore(s.sentiment_score)}</div>
+          <div class="story-content">
+            <div class="story-title">
+              ${s.link ? `<a href="${s.link}" target="_blank" rel="noopener">${s.title}</a>` : s.title}
+            </div>
+            ${s.sentiment_reason ? `<div class="story-reason">${s.sentiment_reason}</div>` : ''}
+            <div class="story-meta">
+              <span class="story-source">${s.source}</span>
+              <span>${timeAgo(s.created_at)}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Auto-refresh every 60 seconds
+    loadData();
+    setInterval(loadData, 60000);
+  </script>
+</body>
+</html>

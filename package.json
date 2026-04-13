@@ -1,0 +1,17 @@
+{
+  "name": "humanity-pulse",
+  "version": "1.0.0",
+  "description": "Real-time global news sentiment dashboard - rating humanity's outlook",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "scrape": "node scraper.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.21.0",
+    "node-fetch": "^2.7.0",
+    "xml2js": "^0.6.2"
+  }
+}
