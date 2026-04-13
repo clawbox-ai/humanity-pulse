@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
-require('dotenv').config();
+// dotenv won't override existing env vars (Render sets GEMINI_API_KEY directly)
+try { require('dotenv').config(); } catch(e) {}
 const db = require('./db');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
