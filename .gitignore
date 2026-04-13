@@ -4,3 +4,4 @@ node_modules/
 *.db-wal
 .envcredentials/
 gemini.secret.json
+credentials/
