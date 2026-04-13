@@ -1,7 +1,6 @@
+node_modules/
 credentials/
 *.db
 *.db-shm
 *.db-wal
-node_modules/credentials/
 gemini.secret.json
-credentials/
