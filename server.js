@@ -2,7 +2,8 @@ const express = require('express');
 const path = require('path');
 const db = require('./db');
 const { scrapeAll } = require('./scraper');
-const { runAnalysis, takeSnapshot } = require('./analyzer');
+const { runAnalysis, takeSnapshot, analyzeSentiment } = require('./analyzer');
+const { geminiKey } = require('./analyzer');
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -124,6 +125,19 @@ app.get('/api/dashboard', (req, res) => {
     topNegative,
     lastUpdated: new Date().toISOString()
   });
+});
+
+// API: Test Gemini with one story
+app.get('/api/test-gemini', async (req, res) => {
+  try {
+    const story = db.prepare('SELECT id, title, description FROM stories WHERE sentiment_score IS NULL LIMIT 1').get();
+    if (!story) return res.json({ error: 'no unrated stories' });
+    const text = story.description ? `${story.title}\n\n${story.description}` : story.title;
+    const result = await analyzeSentiment(story.title, story.description);
+    res.json({ story: story.title, result, geminiKey: geminiKey ? geminiKey.slice(0,8) + '...' : 'NONE' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // API: Trigger scrape + analysis manually

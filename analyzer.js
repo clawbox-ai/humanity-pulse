@@ -84,19 +84,32 @@ async function analyzeViaOllama(text) {
 async function analyzeViaGemini(text) {
   if (!geminiKey) return null;
   
-  const res = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${SENTIMENT_PROMPT}\n\nStory: ${text}` }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
-    })
-  });
+  try {
+    const res = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${SENTIMENT_PROMPT}\n\nStory: ${text}` }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+      })
+    });
 
-  if (!res.ok) return null;
-  const data = await res.json();
-  const response = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  return parseResponse(response);
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.log(`  ❌ Gemini ${res.status}: ${errBody.slice(0, 200)}`);
+      return null;
+    }
+    const data = await res.json();
+    const response = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!response) {
+      console.log(`  ❌ Gemini empty response: ${JSON.stringify(data).slice(0, 200)}`);
+      return null;
+    }
+    return parseResponse(response);
+  } catch (err) {
+    console.log(`  ❌ Gemini error: ${err.message}`);
+    return null;
+  }
 }
 
 async function analyzeSentiment(title, description) {
@@ -236,4 +249,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runAnalysis, takeSnapshot };
+module.exports = { runAnalysis, takeSnapshot, analyzeSentiment, geminiKey };
