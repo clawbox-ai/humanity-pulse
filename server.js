@@ -181,30 +181,34 @@ app.post('/api/refresh', async (req, res) => {
 app.get('/api/debug', (req, res) => {
   const fs = require('fs');
   const path = require('path');
-  const secretPath = path.join(__dirname, 'gemini.secret.json');
-  let fileInfo = 'not found';
-  try {
-    if (fs.existsSync(secretPath)) {
-      fileInfo = 'exists at ' + secretPath;
-    }
-  } catch(e) { fileInfo = 'error: ' + e.message; }
+  const checks = {};
   
-  // Also check /etc/secrets (Render mounts there sometimes)
-  let etcInfo = 'not found';
-  try {
-    if (fs.existsSync('/etc/secrets/gemini.secret.json')) {
-      etcInfo = 'exists at /etc/secrets/gemini.secret.json';
-    }
-  } catch(e) {}
+  // Check env var
+  checks.geminiKeySet = !!process.env.GEMINI_API_KEY;
+  checks.geminiKeyPrefix = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE';
   
-  res.json({
-    geminiKeySet: !!process.env.GEMINI_API_KEY,
-    geminiKeyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE',
-    secretFile: fileInfo,
-    etcSecrets: etcInfo,
-    dirname: __dirname,
-    nodeEnv: process.env.NODE_ENV || 'not set'
-  });
+  // Check multiple file paths
+  const paths = [
+    path.join(__dirname, 'gemini.secret.json'),
+    '/etc/secrets/gemini.secret.json',
+    '/opt/render/project/gemini.secret.json',
+    '/opt/render/secrets/gemini.secret.json',
+    ];
+  checks.files = {};
+  for (const p of paths) {
+    try { checks.files[p] = fs.existsSync(p) ? 'EXISTS' : 'missing'; } catch(e) { checks.files[p] = 'error: ' + e.message; }
+  }
+  
+  // List files in __dirname that contain 'secret' or 'gemini'
+  try {
+    const dirFiles = fs.readdirSync(__dirname);
+    checks.dirFiles = dirFiles.filter(f => f.includes('secret') || f.includes('gemini') || f.includes('.env'));
+  } catch(e) { checks.dirFiles = 'error'; }
+  
+  checks.dirname = __dirname;
+  checks.nodeEnv = process.env.NODE_ENV || 'not set';
+  
+  res.json(checks);
 });
 
 // API: Stats summary
