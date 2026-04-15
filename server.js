@@ -4,7 +4,6 @@ const db = require('./db');
 const { scrapeAll } = require('./scraper');
 const { runAnalysis, takeSnapshot, analyzeSentiment } = require('./analyzer');
 const { geminiKey } = require('./analyzer');
-const { openaiKey } = require('./analyzer');
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -231,10 +230,6 @@ app.get('/api/debug', (req, res) => {
   checks.geminiKeyPrefix = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE';
   checks.openaiKeySet = !!process.env.OPENAI_API_KEY;
   checks.openaiKeyPrefix = process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.slice(0, 8) + '...' : 'NONE';
-  checks.analyzerOpenaiKeyLoaded = !!(analyzer && analyzer.openaiKey);
-  checks.analyzerOpenaiKeySource = process.env.OPENAI_API_KEY ? 'env:OPENAI_API_KEY'
-    : (analyzer && analyzer.openaiKey) ? 'file:openai.secret.json'
-    : 'none';
   
   // Check if analyzer.js loaded a key (from file or env)
   checks.analyzerGeminiKeyLoaded = !!geminiKey;
