@@ -11,6 +11,48 @@ const PORT = process.env.PORT || 3333;
 // Serve static dashboard
 app.use(express.static(path.join(__dirname, 'public')));
 
+// API: Health check
+app.get('/health', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  // Basic stats
+  const total = db.prepare('SELECT COUNT(*) as count FROM stories').get().count;
+  const rated = db.prepare('SELECT COUNT(*) as count FROM stories WHERE sentiment_score IS NOT NULL').get().count;
+
+  // Last scrape time (most recent story created_at)
+  const lastScrape = db.prepare('SELECT MAX(created_at) as last FROM stories').get();
+
+  // Last snapshot time
+  const lastSnap = db.prepare('SELECT MAX(created_at) as last FROM snapshots').get();
+
+  // Gemini key detection
+  const geminiKeySet = !!(process.env.GEMINI_API_KEY || geminiKey);
+  const geminiKeySource = process.env.GEMINI_API_KEY ? 'env:GEMINI_API_KEY'
+    : geminiKey ? 'file:gemini.secret.json'
+    : 'none';
+
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    gemini: {
+      keyDetected: geminiKeySet,
+      keySource: geminiKeySource
+    },
+    stories: {
+      total,
+      rated,
+      unrated: total - rated
+    },
+    lastScrape: lastScrape.last || null,
+    lastSnapshot: lastSnap.last || null,
+    uptime: process.uptime(),
+    nodeEnv: process.env.NODE_ENV || 'development'
+  };
+
+  res.json(health);
+});
+
 // API: Dashboard data
 app.get('/api/dashboard', (req, res) => {
   // Current overall sentiment

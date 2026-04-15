@@ -4,4 +4,7 @@ credentials/
 *.db-shm
 *.db-wal
 gemini.secret.json
+gemeni.secret.json
+*.secret.json
 .env
+humanity-pulse.db*

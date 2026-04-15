@@ -3,7 +3,7 @@ services:
     name: humanity-pulse
     runtime: node
     buildCommand: npm install
-    startCommand: bash start.sh
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production

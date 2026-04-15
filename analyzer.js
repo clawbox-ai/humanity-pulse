@@ -10,30 +10,50 @@ const MODEL = 'qwen2.5:1.5b'; // Local Ollama model
 // Auto-detect: use Ollama if available, otherwise Gemini
 let useGemini = false;
 let geminiKey = process.env.GEMINI_API_KEY || '';
+
+// If no env var, try loading from secret files (multiple paths for different hosting)
 if (!geminiKey) {
   try {
     const fs = require('fs');
     const path = require('path');
-    // Check multiple paths where Render might mount secret files
-    const paths = [
+    // Check multiple paths where Render and other hosts might mount secret files
+    // Also checks for the common typo 'gemeni' (was the original filename on Render)
+    const secretPaths = [
       path.join(__dirname, 'gemini.secret.json'),
-      '/etc/secrets/gemini.secret.json'
+      path.join(__dirname, 'gemeni.secret.json'),  // legacy typo path
+      '/etc/secrets/gemini.secret.json',
+      '/opt/render/project/src/gemini.secret.json',
+      '/opt/render/project/gemini.secret.json',
+      '/opt/render/secrets/gemini.secret.json',
+      '/run/secrets/gemini.secret.json',  // Docker/K8s secrets
     ];
-    for (const p of paths) {
-      if (fs.existsSync(p)) {
-        const secret = JSON.parse(fs.readFileSync(p, 'utf8'));
-        geminiKey = secret.apiKey || '';
-        if (geminiKey) break;
+    for (const p of secretPaths) {
+      try {
+        if (fs.existsSync(p)) {
+          const secret = JSON.parse(fs.readFileSync(p, 'utf8'));
+          const key = secret.apiKey || secret.api_key || secret.key || '';
+          if (key && key.startsWith('AIza')) {
+            geminiKey = key;
+            console.log(`🔑 Gemini key loaded from: ${p}`);
+            break;
+          }
+        }
+      } catch (fileErr) {
+        console.log(`⚠️  Could not read ${p}: ${fileErr.message}`);
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.log(`⚠️  Secret file scan failed: ${e.message}`);
+  }
+} else {
+  console.log('🔑 Gemini key loaded from GEMINI_API_KEY env var');
 }
 
 if (geminiKey) {
   useGemini = true;
   console.log('🔑 Gemini API key found — using Gemini for analysis');
 } else {
-  console.log('🔑 No Gemini key — will use Ollama if available');
+  console.log('🔑 No Gemini key found (checked env var + file paths) — will use Ollama if available');
 }
 
 const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
