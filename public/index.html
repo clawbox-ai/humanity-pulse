@@ -895,5 +895,37 @@
     loadData();
     setInterval(loadData, 60000);
   </script>
+
+  <!-- Support/Donation Section -->
+  <div id="support-section" style="max-width:900px;margin:40px auto;padding:24px;background:rgba(255,255,255,0.05);border-radius:12px;text-align:center;">
+    <h3 style="color:#e0e0e0;margin-bottom:8px;">☕ Support Humanity Pulse</h3>
+    <p style="color:#888;margin-bottom:20px;font-size:14px;">Help keep the servers running and analysis free. Any amount appreciated.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
+      <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:16px 20px;min-width:200px;">
+        <div style="color:#f7931a;font-weight:bold;margin-bottom:6px;">₿ Bitcoin</div>
+        <div style="color:#ccc;font-size:11px;word-break:break-all;font-family:monospace;cursor:pointer;" onclick="copyAddress(this,'btc')" title="Click to copy">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:16px 20px;min-width:200px;">
+        <div style="color:#627eea;font-weight:bold;margin-bottom:6px;">⟠ Ethereum / USDT</div>
+        <div style="color:#ccc;font-size:11px;word-break:break-all;font-family:monospace;cursor:pointer;" onclick="copyAddress(this,'eth')" title="Click to copy">0x1b7Be1FF449E5D531a5c3E9Bc53982f7a8eFaDB6</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:16px 20px;min-width:200px;">
+        <div style="color:#ff0013;font-weight:bold;margin-bottom:6px;">◈ TRON (USDT)</div>
+        <div style="color:#ccc;font-size:11px;word-break:break-all;font-family:monospace;cursor:pointer;" onclick="copyAddress(this,'tron')" title="Click to copy">TKqdJwQCzGVNdTLZZusrXUtcVqT8zPZ2pU</div>
+      </div>
+    </div>
+    <p style="color:#555;margin-top:16px;font-size:12px;">Click any address to copy • USDT on TRON is cheapest for small amounts</p>
+  </div>
+
+  <script>
+  function copyAddress(el, type) {
+    const text = el.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = el.style.color;
+      el.style.color = '#4caf50';
+      setTimeout(() => el.style.color = orig, 1500);
+    });
+  }
+  </script>
 </body>
 </html>
