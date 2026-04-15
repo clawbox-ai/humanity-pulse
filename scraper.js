@@ -8,84 +8,33 @@ const RSS_FEEDS = [
   { name: 'BBC Tech', url: 'http://feeds.bbci.co.uk/news/technology/rss.xml', type: 'rss' },
   { name: 'BBC Science', url: 'http://feeds.bbci.co.uk/news/science_and_environment/rss.xml', type: 'rss' },
   { name: 'BBC Health', url: 'http://feeds.bbci.co.uk/news/health/rss.xml', type: 'rss' },
-  { name: 'BBC Business', url: 'http://feeds.bbci.co.uk/news/business/rss.xml', type: 'rss' },
-  { name: 'BBC Politics', url: 'http://feeds.bbci.co.uk/news/politics/rss.xml', type: 'rss' },
-  { name: 'BBC Africa', url: 'http://feeds.bbci.co.uk/news/world/africa/rss.xml', type: 'rss' },
-  { name: 'BBC Asia', url: 'http://feeds.bbci.co.uk/news/world/asia/rss.xml', type: 'rss' },
-  { name: 'BBC Europe', url: 'http://feeds.bbci.co.uk/news/world/europe/rss.xml', type: 'rss' },
-  { name: 'BBC Latin America', url: 'http://feeds.bbci.co.uk/news/world/latin_america/rss.xml', type: 'rss' },
-  { name: 'BBC Middle East', url: 'http://feeds.bbci.co.uk/news/world/middle_east/rss.xml', type: 'rss' },
 
   // === The Guardian ===
   { name: 'Guardian World', url: 'https://www.theguardian.com/world/rss', type: 'rss' },
-  { name: 'Guardian US', url: 'https://www.theguardian.com/us-news/rss', type: 'rss' },
   { name: 'Guardian Tech', url: 'https://www.theguardian.com/technology/rss', type: 'rss' },
-  { name: 'Guardian Science', url: 'https://www.theguardian.com/science/rss', type: 'rss' },
-  { name: 'Guardian Environment', url: 'https://www.theguardian.com/environment/rss', type: 'rss' },
-  { name: 'Guardian Business', url: 'https://www.theguardian.com/business/rss', type: 'rss' },
-  { name: 'Guardian Health', url: 'https://www.theguardian.com/society/health/rss', type: 'rss' },
   { name: 'Guardian Climate Crisis', url: 'https://www.theguardian.com/environment/climate-crisis/rss', type: 'rss' },
-  { name: 'Guardian Global Development', url: 'https://www.theguardian.com/global-development/rss', type: 'rss' },
 
   // === NPR ===
   { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml', type: 'rss' },
   { name: 'NPR Science', url: 'https://feeds.npr.org/1007/rss.xml', type: 'rss' },
-  { name: 'NPR World', url: 'https://feeds.npr.org/1004/rss.xml', type: 'rss' },
-  { name: 'NPR Health', url: 'https://feeds.npr.org/1127/rss.xml', type: 'rss' },
-  { name: 'NPR Tech', url: 'https://feeds.npr.org/1019/rss.xml', type: 'rss' },
 
   // === Al Jazeera ===
   { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', type: 'rss' },
 
-  // === Reuters ===
-  { name: 'Reuters World', url: 'https://www.reuters.com/rssFeed/worldNews', type: 'rss' },
-  { name: 'Reuters Tech', url: 'https://www.reuters.com/rssFeed/technologyNews', type: 'rss' },
-  { name: 'Reuters Science', url: 'https://www.reuters.com/rssFeed/scienceNews', type: 'rss' },
-  { name: 'Reuters Health', url: 'https://www.reuters.com/rssFeed/healthNews', type: 'rss' },
-  { name: 'Reuters Business', url: 'https://www.reuters.com/rssFeed/businessNews', type: 'rss' },
-
-  // === AP News ===
-  { name: 'AP World', url: 'https://feedx.net/rss/ap-world.xml', type: 'rss' },
-  { name: 'AP Science', url: 'https://feedx.net/rss/ap-science.xml', type: 'rss' },
-
-  // === CNN ===
-  { name: 'CNN World', url: 'http://rss.cnn.com/rss/edition_world.rss', type: 'rss' },
-  { name: 'CNN Tech', url: 'http://rss.cnn.com/rss/edition_technology.rss', type: 'rss' },
-  { name: 'CNN Health', url: 'http://rss.cnn.com/rss/edition_health.rss', type: 'rss' },
-
   // === Tech & Science ===
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', type: 'rss' },
   { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index', type: 'rss' },
-  { name: 'Wired', url: 'https://www.wired.com/feed/rss', type: 'rss' },
-  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', type: 'rss' },
-  { name: 'New Scientist', url: 'https://www.newscientist.com/feed/home/', type: 'rss' },
   { name: 'Science Daily', url: 'https://www.sciencedaily.com/rss/all.xml', type: 'rss' },
-  { name: 'Nature', url: 'https://www.nature.com/nature.rss', type: 'rss' },
   { name: 'MIT Tech Review', url: 'https://www.technologyreview.com/feed/', type: 'rss' },
 
-  // === Climate & Environment ===
-  { name: 'Carbon Brief', url: 'https://www.carbonbrief.org/feed/', type: 'rss' },
-  { name: 'Inside Climate News', url: 'https://insideclimatenews.org/feed/', type: 'rss' },
-  { name: 'Grist', url: 'https://grist.org/feed/', type: 'rss' },
-
-  // === Health & Medicine ===
+  // === Health & Global ===
   { name: 'WHO News', url: 'https://www.who.int/rss-feeds/news-english.xml', type: 'rss' },
   { name: 'Stat News', url: 'https://www.statnews.com/feed/', type: 'rss' },
-
-  // === Global Development & Human Rights ===
-  { name: 'UN News', url: 'https://news.un.org/en/feed/subscribe', type: 'rss' },
   { name: 'Human Rights Watch', url: 'https://www.hrw.org/en/rss/news', type: 'rss' },
-  { name: 'Amnesty International', url: 'https://www.amnesty.org/en/feed/', type: 'rss' },
 
-  // === Economy & Finance ===
-  { name: 'CNBC World', url: 'https://www.cnbc.com/id/100727362/device/rss/rss.html', type: 'rss' },
-  { name: 'Financial Times', url: 'https://www.ft.com/rss/home', type: 'rss' },
-
-  // === Space & Exploration ===
+  // === Space & AI ===
   { name: 'NASA', url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', type: 'rss' },
   { name: 'Space.com', url: 'https://www.space.com/feeds/all', type: 'rss' },
-
-  // === AI & Future ===
   { name: 'AI News', url: 'https://artificialintelligence-news.com/feed/', type: 'rss' },
 ];
 
