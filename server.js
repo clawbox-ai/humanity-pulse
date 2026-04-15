@@ -3,6 +3,7 @@ const path = require('path');
 const db = require('./db');
 const { scrapeAll } = require('./scraper');
 const { runAnalysis, takeSnapshot, analyzeSentiment } = require('./analyzer');
+const { getCosmicReport } = require('./cosmic-influence');
 const { geminiKey } = require('./analyzer');
 
 const app = express();
@@ -54,7 +55,7 @@ app.get('/health', (req, res) => {
 });
 
 // API: Dashboard data
-app.get('/api/dashboard', (req, res) => {
+app.get('/api/dashboard', async (req, res) => {
   // Current overall sentiment
   const overall = db.prepare(`
     SELECT 
@@ -165,6 +166,7 @@ app.get('/api/dashboard', (req, res) => {
     snapshots,
     topPositive,
     topNegative,
+    cosmic: await getCosmicReport().catch(() => null),
     lastUpdated: new Date().toISOString()
   });
 });
@@ -270,6 +272,16 @@ app.get('/api/stats', (req, res) => {
   const unrated = db.prepare('SELECT COUNT(*) as count FROM stories WHERE sentiment_score IS NULL').get();
   const sources = db.prepare('SELECT COUNT(DISTINCT source) as count FROM stories').get();
   res.json({ total: total.count, rated: rated.count, unrated: unrated.count, sources: sources.count });
+});
+
+// Cosmic influence endpoint
+app.get('/api/cosmic', async (req, res) => {
+  try {
+    const report = await getCosmicReport();
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
