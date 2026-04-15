@@ -219,7 +219,7 @@ app.post('/api/refresh', async (req, res) => {
   }
 });
 
-// API: Debug info
+// API: Debug info (legacy — prefer /health for monitoring)
 app.get('/api/debug', (req, res) => {
   const fs = require('fs');
   const path = require('path');
@@ -229,10 +229,18 @@ app.get('/api/debug', (req, res) => {
   checks.geminiKeySet = !!process.env.GEMINI_API_KEY;
   checks.geminiKeyPrefix = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE';
   
+  // Check if analyzer.js loaded a key (from file or env)
+  checks.analyzerGeminiKeyLoaded = !!geminiKey;
+  checks.analyzerGeminiKeySource = process.env.GEMINI_API_KEY ? 'env:GEMINI_API_KEY'
+    : geminiKey ? 'file:gemini.secret.json (or typo variant)'
+    : 'none';
+  
   // Check multiple file paths
   const paths = [
     path.join(__dirname, 'gemini.secret.json'),
+    path.join(__dirname, 'gemeni.secret.json'),
     '/etc/secrets/gemini.secret.json',
+    '/opt/render/project/src/gemini.secret.json',
     '/opt/render/project/gemini.secret.json',
     '/opt/render/secrets/gemini.secret.json',
     ];
