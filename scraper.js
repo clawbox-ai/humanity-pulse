@@ -116,7 +116,7 @@ async function fetchRSS(feed) {
         title: item.title?._ || item.title || '',
         link: item.link?.href || item.link || '',
         description: (item.description?._ || item.description || item.summary?._ || item.summary || '').replace(/<[^>]*>/g, '').trim().slice(0, 500),
-        pub_date: item.pubDate || item.published || item.updated || new Date().toISOString()
+        pub_date: (item.pubDate || item.published || item.updated || new Date().toISOString() || '').toString().slice(0, 100) || new Date().toISOString()
       }));
 
     console.log(`  [OK] ${feed.name}: ${stories.length} stories`);
@@ -180,8 +180,18 @@ function storeStories(stories) {
   let newCount = 0;
   const insertMany = db.transaction((items) => {
     for (const s of items) {
-      const result = insert.run(s.source, s.title, s.link, s.description, s.pub_date);
-      if (result.changes > 0) newCount++;
+      try {
+        const result = insert.run(
+          s.source || 'Unknown',
+          s.title || '',
+          s.link || '',
+          s.description || '',
+          s.pub_date || new Date().toISOString()
+        );
+        if (result.changes > 0) newCount++;
+      } catch(e) {
+        // Skip malformed stories
+      }
     }
   });
   
