@@ -4,6 +4,7 @@ const db = require('./db');
 const { scrapeAll } = require('./scraper');
 const { runAnalysis, takeSnapshot, analyzeSentiment } = require('./analyzer');
 const { geminiKey } = require('./analyzer');
+const { openaiKey } = require('./analyzer');
 
 const app = express();
 const PORT = process.env.PORT || 3333;

@@ -5,6 +5,7 @@ const db = require('./db');
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = 'qwen2.5:1.5b'; // Local Ollama model
 
 // Auto-detect: use Ollama if available, otherwise Gemini
@@ -49,11 +50,33 @@ if (!geminiKey) {
   console.log('🔑 Gemini key loaded from GEMINI_API_KEY env var');
 }
 
+// Load OpenAI key
+let openaiKey = process.env.OPENAI_API_KEY || '';
+if (!openaiKey) {
+  try {
+    const fs2 = require('fs');
+    const p2 = require('path');
+    const oaiPaths = [
+      path.join(__dirname, 'openai.secret.json'),
+      '/etc/secrets/openai.secret.json',
+    ];
+    for (const p of oaiPaths) {
+      if (fs2.existsSync(p)) {
+        const sec = JSON.parse(fs2.readFileSync(p, 'utf8'));
+        openaiKey = sec.apiKey || sec.key || '';
+        if (openaiKey) { console.log(`🔑 OpenAI key loaded from: ${p}`); break; }
+      }
+    }
+  } catch(e) {}
+}
+
 if (geminiKey) {
   useGemini = true;
   console.log('🔑 Gemini API key found — using Gemini for analysis');
+} else if (openaiKey) {
+  console.log('🔑 OpenAI key found — using GPT-4o-mini for analysis');
 } else {
-  console.log('🔑 No Gemini key found (checked env var + file paths) — will use Ollama if available');
+  console.log('🔑 No Gemini/OpenAI key found — will use Ollama if available');
 }
 
 const SENTIMENT_PROMPT = `You are rating news stories on their impact for humanity on a planetary scale. Rate from -10 (catastrophic for humanity) to +10 (amazing breakthrough for humanity).
@@ -148,6 +171,37 @@ async function analyzeWithRetry(story, retries = 2) {
   return null;
 }
 
+async function analyzeViaOpenAI(text) {
+  if (!openaiKey) return null;
+  try {
+    const res = await fetch(OPENAI_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: `${SENTIMENT_PROMPT}\n\nStory: ${text}` }],
+        max_tokens: 200,
+        temperature: 0.3
+      })
+    });
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.log(`  ❌ OpenAI ${res.status}: ${errBody.slice(0, 200)}`);
+      return null;
+    }
+    const data = await res.json();
+    const response = data?.choices?.[0]?.message?.content || '';
+    if (!response) return null;
+    return parseResponse(response);
+  } catch (err) {
+    console.log(`  ❌ OpenAI error: ${err.message}`);
+    return null;
+  }
+}
+
 async function analyzeSentiment(title, description) {
   const text = description ? `${title}\n\n${description}` : title;
   
@@ -156,7 +210,14 @@ async function analyzeSentiment(title, description) {
     if (geminiKey) {
       const result = await analyzeViaGemini(text);
       if (result) return result;
-      console.log('  Gemini failed, trying Ollama...');
+      console.log('  Gemini failed, trying OpenAI...');
+    }
+    
+    // Try OpenAI as fallback (cheap, reliable)
+    if (openaiKey) {
+      const result = await analyzeViaOpenAI(text);
+      if (result) return result;
+      console.log('  OpenAI failed, trying Ollama...');
     }
     
     // Fallback to Ollama (works locally)
@@ -286,4 +347,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runAnalysis, takeSnapshot, analyzeSentiment, geminiKey };
+module.exports = { runAnalysis, takeSnapshot, analyzeSentiment, geminiKey, openaiKey };

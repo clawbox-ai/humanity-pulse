@@ -4,6 +4,8 @@ credentials/
 *.db-shm
 *.db-wal
 gemini.secret.json
+openai.secret.json
+gemeni.secret.json
 gemeni.secret.json
 *.secret.json
 .env
