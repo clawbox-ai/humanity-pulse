@@ -133,6 +133,21 @@ async function analyzeViaGemini(text) {
   }
 }
 
+// Retry wrapper for 429 rate limits
+async function analyzeWithRetry(story, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const result = await analyzeSentiment(story.title, story.description);
+    if (result) return result;
+    // If we got null (likely 429), wait and retry
+    if (attempt < retries && geminiKey) {
+      const backoff = (attempt + 1) * 10 * 1000; // 10s, 20s
+      console.log(`  ⏳ Retry ${attempt + 1}/${retries} in ${backoff/1000}s...`);
+      await new Promise(r => setTimeout(r, backoff));
+    }
+  }
+  return null;
+}
+
 async function analyzeSentiment(title, description) {
   const text = description ? `${title}\n\n${description}` : title;
   
@@ -155,7 +170,7 @@ async function analyzeSentiment(title, description) {
   }
 }
 
-async function analyzeUnrated(limit = 50) {
+async function analyzeUnrated(limit = 15) {
   const stories = db.prepare(`
     SELECT id, title, description, source 
     FROM stories 
@@ -179,7 +194,7 @@ async function analyzeUnrated(limit = 50) {
   `);
 
   for (const story of stories) {
-    const result = await analyzeSentiment(story.title, story.description);
+    const result = await analyzeWithRetry(story);
     
     if (result) {
       update.run(result.score, result.reason, story.id);
@@ -189,8 +204,9 @@ async function analyzeUnrated(limit = 50) {
       console.log(`  ${emoji} ${result.score > 0 ? '+' : ''}${result.score} | ${story.title.slice(0, 60)}...`);
     }
 
-    // Rate limit: slower for Gemini, faster for local Ollama
-    await new Promise(r => setTimeout(r, geminiKey ? 2000 : 200));
+    // Rate limit: Gemini free tier = 20 req/min. 3.5s delay = ~17/min
+    // Add 429 retry with backoff
+    await new Promise(r => setTimeout(r, geminiKey ? 3500 : 200));
   }
 
   console.log(`  Analyzed: ${analyzed}/${stories.length}`);
