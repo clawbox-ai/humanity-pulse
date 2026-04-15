@@ -231,9 +231,9 @@ app.get('/api/debug', (req, res) => {
   checks.geminiKeyPrefix = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 8) + '...' : 'NONE';
   checks.openaiKeySet = !!process.env.OPENAI_API_KEY;
   checks.openaiKeyPrefix = process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.slice(0, 8) + '...' : 'NONE';
-  checks.analyzerOpenaiKeyLoaded = !!analyzer.openaiKey;
+  checks.analyzerOpenaiKeyLoaded = !!(analyzer && analyzer.openaiKey);
   checks.analyzerOpenaiKeySource = process.env.OPENAI_API_KEY ? 'env:OPENAI_API_KEY'
-    : analyzer.openaiKey ? 'file:openai.secret.json'
+    : (analyzer && analyzer.openaiKey) ? 'file:openai.secret.json'
     : 'none';
   
   // Check if analyzer.js loaded a key (from file or env)
