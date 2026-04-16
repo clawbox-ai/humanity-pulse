@@ -156,11 +156,63 @@ app.get('/api/dashboard', async (req, res) => {
     ORDER BY sentiment_score ASC LIMIT 5
   `).all();
 
+  // Candlestick data (daily OHLC for 30 days)
+  const candlestick = db.prepare(`
+    SELECT 
+      strftime('%Y-%m-%d', created_at) as day,
+      MIN(sentiment_score) as low,
+      MAX(sentiment_score) as high,
+      (
+        SELECT s2.sentiment_score FROM stories s2 
+        WHERE strftime('%Y-%m-%d', s2.created_at) = strftime('%Y-%m-%d', s1.created_at)
+          AND s2.sentiment_score IS NOT NULL
+        ORDER BY s2.created_at ASC LIMIT 1
+      ) as open,
+      AVG(sentiment_score) as close_avg,
+      COUNT(*) as count
+    FROM stories s1
+    WHERE sentiment_score IS NOT NULL 
+      AND created_at >= datetime('now', '-30 days')
+    GROUP BY day
+    ORDER BY day
+  `).all();
+
+  // Get actual close (last story of each day)
+  const closeScores = db.prepare(`
+    SELECT 
+      strftime('%Y-%m-%d', created_at) as day,
+      sentiment_score as close
+    FROM stories 
+    WHERE sentiment_score IS NOT NULL 
+      AND created_at >= datetime('now', '-30 days')
+      AND id IN (
+        SELECT id FROM stories s2 
+        WHERE strftime('%Y-%m-%d', s2.created_at) = strftime('%Y-%m-%d', stories.created_at)
+          AND s2.sentiment_score IS NOT NULL
+        ORDER BY s2.created_at DESC LIMIT 1
+      )
+    ORDER BY day
+  `).all();
+
+  // Build proper OHLC
+  const ohlc = candlestick.map(c => {
+    const closeMatch = closeScores.find(cs => cs.day === c.day);
+    return {
+      day: c.day,
+      open: c.open || c.close_avg,
+      high: c.high,
+      low: c.low,
+      close: closeMatch ? closeMatch.close : c.close_avg,
+      count: c.count
+    };
+  });
+
   res.json({
     overall,
     recentStories,
     timeline,
     dailyTimeline,
+    candlestick: ohlc,
     distribution,
     sourceBreakdown,
     snapshots,

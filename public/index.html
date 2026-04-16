@@ -560,6 +560,19 @@
         </div>
       </div>
 
+      <!-- Candlestick Chart -->
+      <div class="card card-full">
+        <div class="card-header">
+          <div class="card-title">🕯️ Daily Candlestick</div>
+          <div class="card-badge" id="candle-badge">1D</div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="candle-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <!-- Distribution -->
       <div class="card">
         <div class="card-header">
@@ -627,6 +640,49 @@
     let timelineChart = null;
     let pieChart = null;
     let sourceChart = null;
+    let candleChart = null;
+    let liveDotAnim = null;
+
+    // Custom plugin: live pulsing dot on last data point
+    const liveDotPlugin = {
+      id: 'liveDot',
+      afterDraw(chart) {
+        const dataset = chart.data.datasets[0];
+        if (!dataset || !dataset.data || dataset.data.length === 0) return;
+        const meta = chart.getDatasetMeta(0);
+        const lastPoint = meta.data[meta.data.length - 1];
+        if (!lastPoint) return;
+
+        const ctx = chart.ctx;
+        const x = lastPoint.x;
+        const y = lastPoint.y;
+
+        // Outer pulse
+        const time = Date.now() / 1000;
+        const pulse = (Math.sin(time * 3) + 1) / 2; // 0-1 oscillation
+        const outerR = 8 + pulse * 6;
+        ctx.beginPath();
+        ctx.arc(x, y, outerR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(124,77,255,${0.3 * (1 - pulse)})`;
+        ctx.fill();
+
+        // Inner dot
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#7c4dff';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+    };
+
+    // Keep the pulsing dot animating
+    function animateLiveDot() {
+      if (timelineChart) timelineChart.draw();
+      requestAnimationFrame(animateLiveDot);
+    }
 
     function scoreColor(score) {
       if (score > 0.5) return 'var(--positive)';
@@ -730,6 +786,9 @@
       // Timeline chart
       renderTimeline(timeline);
 
+      // Candlestick chart
+      renderCandlestick(data.candlestick || []);
+
       // Distribution
       renderDistribution(distribution);
 
@@ -784,6 +843,7 @@
       
       timelineChart = new Chart(ctx, {
         type: 'line',
+        plugins: [liveDotPlugin],
         data: {
           labels: [...labels, ...futureLabels],
           datasets: [
@@ -793,7 +853,7 @@
               borderColor: '#7c4dff',
               backgroundColor: 'rgba(124,77,255,0.1)',
               fill: true,
-              tension: 0.3,
+              tension: 0.4,
               pointRadius: 3,
               pointBackgroundColor: scores.map(s => s > 0 ? '#00e676' : s < 0 ? '#ff1744' : '#ffc107'),
             },
@@ -811,9 +871,9 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: { duration: 500 },
           plugins: {
             legend: { display: false },
-            annotation: {}
           },
           scales: {
             y: {
@@ -829,7 +889,162 @@
           }
         }
       });
+
+      // Start live dot animation
+      if (!liveDotAnim) animateLiveDot();
     }
+
+    function renderCandlestick(candlestick) {
+      const canvas = document.getElementById('candle-chart');
+      const ctx = canvas.getContext('2d');
+
+      if (!candlestick || candlestick.length === 0) {
+        document.getElementById('candle-badge').textContent = 'No data';
+        return;
+      }
+
+      document.getElementById('candle-badge').textContent = candlestick.length + ' days';
+
+      // Custom candlestick chart (draw manually on canvas)
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 280 * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = '280px';
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = 280;
+      const padding = { top: 20, bottom: 40, left: 50, right: 20 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+      const numCandles = candlestick.length;
+      const candleWidth = Math.max(4, Math.min(20, (chartW / numCandles) * 0.7));
+      const gap = (chartW - candleWidth * numCandles) / (numCandles + 1);
+
+      // Y scale: -10 to 10
+      const yMin = -10, yMax = 10;
+      const yScale = chartH / (yMax - yMin);
+      const yMap = (val) => padding.top + (yMax - val) * yScale;
+
+      // Clear
+      ctx.clearRect(0, 0, w, h);
+
+      // Zero line
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, yMap(0));
+      ctx.lineTo(w - padding.right, yMap(0));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      for (let v = -8; v <= 8; v += 2) {
+        if (v === 0) continue;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, yMap(v));
+        ctx.lineTo(w - padding.right, yMap(v));
+        ctx.stroke();
+      }
+
+      // Y axis labels
+      ctx.fillStyle = '#555570';
+      ctx.font = '10px JetBrains Mono';
+      ctx.textAlign = 'right';
+      for (let v = -10; v <= 10; v += 5) {
+        ctx.fillText(v, padding.left - 8, yMap(v) + 4);
+      }
+
+      // Draw candles
+      for (let i = 0; i < numCandles; i++) {
+        const c = candlestick[i];
+        const x = padding.left + gap + i * (candleWidth + gap) + candleWidth / 2;
+        const isGreen = c.close >= c.open;
+        const color = isGreen ? '#00e676' : '#ff1744';
+        const colorDim = isGreen ? 'rgba(0,230,118,0.3)' : 'rgba(255,23,68,0.3)';
+
+        // Wick (high to low)
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, yMap(c.high));
+        ctx.lineTo(x, yMap(c.low));
+        ctx.stroke();
+
+        // Body (open to close)
+        const bodyTop = yMap(Math.max(c.open, c.close));
+        const bodyBot = yMap(Math.min(c.open, c.close));
+        const bodyH = Math.max(1, bodyBot - bodyTop);
+
+        // Fill
+        ctx.fillStyle = isGreen ? colorDim : color;
+        ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyH);
+
+        // Border
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - candleWidth / 2, bodyTop, candleWidth, bodyH);
+
+        // X axis date label (every 3rd candle)
+        if (i % 3 === 0 || i === numCandles - 1) {
+          const dateLabel = new Date(c.day + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' });
+          ctx.fillStyle = '#555570';
+          ctx.font = '9px Inter';
+          ctx.textAlign = 'center';
+          ctx.fillText(dateLabel, x, h - padding.bottom + 16);
+        }
+
+        // Hover tooltip (store position for mouseover)
+        c._x = x;
+        c._candleW = candleWidth;
+      }
+
+      // Store candlestick data for hover
+      canvas._candleData = candlestick;
+    }
+
+    // Candle hover tooltip
+    document.addEventListener('mousemove', (e) => {
+      const canvas = document.getElementById('candle-chart');
+      if (!canvas || !canvas._candleData) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const candle = canvas._candleData.find(c => c._x && Math.abs(x - c._x) < c._candleW);
+
+      let tooltip = document.getElementById('candle-tooltip');
+      if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'candle-tooltip';
+        tooltip.style.cssText = 'position:fixed;background:#161622;border:1px solid #2a2a3a;border-radius:8px;padding:12px 16px;font-size:12px;pointer-events:none;z-index:1000;font-family:Inter,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.5)';
+        document.body.appendChild(tooltip);
+      }
+
+      if (candle && y > 0 && y < 280) {
+        const dateStr = new Date(candle.day + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+        const isGreen = candle.close >= candle.open;
+        tooltip.innerHTML = `
+          <div style="color:var(--text-muted);margin-bottom:6px">${dateStr}</div>
+          <div style="color:var(--text-secondary);line-height:1.6">
+            O: <span style="color:${isGreen ? '#00e676' : '#ff1744'}">${candle.open.toFixed(1)}</span>
+            H: <span style="color:#00e676">${candle.high.toFixed(1)}</span>
+            L: <span style="color:#ff1744">${candle.low.toFixed(1)}</span>
+            C: <span style="color:${isGreen ? '#00e676' : '#ff1744'}">${candle.close.toFixed(1)}</span>
+          </div>
+          <div style="color:var(--text-muted);margin-top:4px;font-size:11px">${candle.count} stories</div>
+        `;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 12) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+      } else {
+        tooltip.style.display = 'none';
+      }
+    });
 
     function renderDistribution(distribution) {
       const container = document.getElementById('distribution');
