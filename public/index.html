@@ -58,12 +58,15 @@
     .logo-icon {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, var(--positive), var(--accent));
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background: transparent;
+    }
+
+    .logo-icon canvas {
+      width: 40px;
+      height: 40px;
     }
 
     .logo-text {
@@ -102,10 +105,71 @@
       padding: 32px 40px;
     }
 
-    /* Hero Score */
+    /* Globe Hero */
+    .globe-hero {
+      position: relative;
+      text-align: center;
+      padding: 32px 0 16px;
+      overflow: hidden;
+    }
+
+    .globe-container {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 0 auto 8px;
+    }
+
+    #globe-canvas {
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+    }
+
+    .globe-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,230,118,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      transition: background 1s;
+    }
+
+    .globe-score-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .globe-score-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 64px;
+      font-weight: 700;
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(0,0,0,0.8);
+      transition: color 0.5s;
+    }
+
+    .globe-score-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Hero Score (kept for non-globe fallback) */
     .hero {
       text-align: center;
       padding: 48px 0 40px;
+      display: none; /* hidden when globe is active */
     }
 
     .hero-label {
@@ -423,7 +487,7 @@
 <body>
   <div class="header">
     <div class="logo">
-      <div class="logo-icon">🌍</div>
+      <div class="logo-icon"><canvas id="logo-globe" width="80" height="80"></canvas></div>
       <div class="logo-text">Humanity<span>Pulse</span></div>
     </div>
     <div class="header-meta">
@@ -434,13 +498,30 @@
   </div>
 
   <div class="main">
-    <!-- Hero Score -->
-    <div class="hero">
+    <!-- Globe Hero -->
+    <div class="globe-hero">
       <div class="hero-label">Global Humanity Sentiment</div>
-      <div class="hero-score" id="hero-score">—</div>
+      <div class="globe-container">
+        <canvas id="globe-canvas" width="640" height="640"></canvas>
+        <div class="globe-glow" id="globe-glow"></div>
+        <div class="globe-score-overlay">
+          <div class="globe-score-value" id="hero-score">—</div>
+          <div class="globe-score-label">humanity pulse</div>
+        </div>
+      </div>
       <div class="hero-subtitle" id="hero-subtitle">Analyzing world events...</div>
       <div class="hero-bar">
         <div class="hero-bar-fill" id="hero-bar"></div>
+      </div>
+    </div>
+
+    <!-- Hero Score (fallback) -->
+    <div class="hero">
+      <div class="hero-label">Global Humanity Sentiment</div>
+      <div class="hero-score" id="hero-score-fallback">—</div>
+      <div class="hero-subtitle" id="hero-subtitle-fallback">Analyzing world events...</div>
+      <div class="hero-bar">
+        <div class="hero-bar-fill" id="hero-bar-fallback"></div>
       </div>
     </div>
 
@@ -890,6 +971,251 @@
         </div>
       `).join('');
     }
+
+    // ─── Rotating Globe ────────────────────────────────────
+    const globeCanvas = document.getElementById('globe-canvas');
+    const globeCtx = globeCanvas.getContext('2d');
+    const logoCanvas = document.getElementById('logo-globe');
+    const logoCtx = logoCanvas.getContext('2d');
+    let globeRotation = 0;
+    let currentGlobeColor = { r: 0, g: 230, b: 118 }; // green default
+
+    // Simplified world map coordinates (lat, lon) — continents outline
+    const continents = [
+      // North America
+      [[70,-168],[72,-140],[65,-100],[50,-55],[40,-75],[30,-82],[25,-98],[30,-118],[48,-125],[55,-135],[60,-148],[70,-168]],
+      // South America
+      [[12,-72],[5,-77],[-5,-81],[-15,-76],[-23,-70],[-35,-57],[-55,-68],[-52,-75],[-40,-64],[-20,-40],[-5,-50],[2,-68],[12,-72]],
+      // Europe
+      [[72,25],[70,30],[65,25],[55,10],[48,-5],[36,-10],[38,25],[40,30],[46,15],[55,12],[60,5],[65,15],[72,25]],
+      // Africa
+      [[37,-10],[35,10],[30,32],[15,42],[5,42],[-5,40],[-15,42],[-25,35],[-35,20],[-35,18],[-25,15],[-10,12],[0,10],[5,-5],[15,-17],[25,-15],[35,-5],[37,-10]],
+      // Asia
+      [[72,180],[72,40],[65,40],[55,25],[40,30],[30,50],[25,55],[15,75],[5,80],[0,105],[10,108],[22,114],[35,130],[40,140],[50,140],[55,135],[60,170],[72,180]],
+      // Australia
+      [[-12,132],[-25,114],[-35,116],[-38,148],[-28,154],[-15,141],[-12,132]],
+    ];
+
+    function projectPoint(lat, lon, rotation, cx, cy, radius) {
+      const phi = (lat * Math.PI) / 180;
+      const lambda = ((lon + rotation) * Math.PI) / 180;
+      const x = Math.cos(phi) * Math.sin(lambda);
+      const y = -Math.sin(phi);
+      const z = Math.cos(phi) * Math.cos(lambda);
+      if (z < -0.1) return null; // behind globe
+      return { x: cx + x * radius, y: cy + y * radius, z };
+    }
+
+    function drawGlobe(ctx, w, h, rotation, color, isLogo) {
+      const cx = w / 2, cy = h / 2;
+      const radius = Math.min(w, h) * (isLogo ? 0.42 : 0.48);
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Globe background — dark sphere
+      const grad = ctx.createRadialGradient(cx - radius*0.2, cy - radius*0.2, radius*0.1, cx, cy, radius);
+      grad.addColorStop(0, '#1a1a2e');
+      grad.addColorStop(0.7, '#0d0d1a');
+      grad.addColorStop(1, '#050510');
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Grid lines (longitude)
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = isLogo ? 0.5 : 1;
+      for (let lon = -180; lon < 180; lon += 30) {
+        ctx.beginPath();
+        let started = false;
+        for (let lat = -90; lat <= 90; lat += 3) {
+          const p = projectPoint(lat, lon, rotation, cx, cy, radius);
+          if (p && p.z > 0) {
+            if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+            else ctx.lineTo(p.x, p.y);
+          } else started = false;
+        }
+        ctx.stroke();
+      }
+      // Grid lines (latitude)
+      for (let lat = -60; lat <= 60; lat += 30) {
+        ctx.beginPath();
+        let started = false;
+        for (let lon = -180; lon <= 180; lon += 3) {
+          const p = projectPoint(lat, lon, rotation, cx, cy, radius);
+          if (p && p.z > 0) {
+            if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+            else ctx.lineTo(p.x, p.y);
+          } else started = false;
+        }
+        ctx.stroke();
+      }
+
+      // Continents
+      const landColor = `rgba(${color.r},${color.g},${color.b},${isLogo ? 0.5 : 0.35})`;
+      const landBorder = `rgba(${color.r},${color.g},${color.b},${isLogo ? 0.7 : 0.5})`;
+      ctx.strokeStyle = landBorder;
+      ctx.fillStyle = landColor;
+      ctx.lineWidth = isLogo ? 0.8 : 1.2;
+
+      for (const continent of continents) {
+        ctx.beginPath();
+        let started = false;
+        let allVisible = true;
+        for (const [lat, lon] of continent) {
+          const p = projectPoint(lat, lon, rotation, cx, cy, radius);
+          if (p && p.z > 0) {
+            if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+            else ctx.lineTo(p.x, p.y);
+          } else { allVisible = false; started = false; }
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Glow around edge
+      if (!isLogo) {
+        const edgeGrad = ctx.createRadialGradient(cx, cy, radius * 0.9, cx, cy, radius * 1.1);
+        edgeGrad.addColorStop(0, 'transparent');
+        edgeGrad.addColorStop(0.5, `rgba(${color.r},${color.g},${color.b},0.08)`);
+        edgeGrad.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+        ctx.fillStyle = edgeGrad;
+        ctx.fill();
+      }
+    }
+
+    function updateGlobeColor(score) {
+      if (score > 3) currentGlobeColor = { r: 0, g: 230, b: 118 };      // green
+      else if (score > 1) currentGlobeColor = { r: 100, g: 200, b: 100 }; // light green
+      else if (score > -1) currentGlobeColor = { r: 200, g: 200, b: 50 };  // yellow
+      else if (score > -3) currentGlobeColor = { r: 255, g: 120, b: 50 };  // orange
+      else currentGlobeColor = { r: 255, g: 23, b: 68 };                   // red
+    }
+
+    function animateGlobe() {
+      globeRotation += 0.15; // slow rotation
+      drawGlobe(globeCtx, globeCanvas.width, globeCanvas.height, globeRotation, currentGlobeColor, false);
+      drawGlobe(logoCtx, logoCanvas.width, logoCanvas.height, globeRotation, currentGlobeColor, true);
+      requestAnimationFrame(animateGlobe);
+    }
+
+    animateGlobe();
+
+    // ─── Cosmic Influence Section ──────────────────────────
+    let cosmicData = null;
+
+    async function loadCosmic() {
+      try {
+        const res = await fetch('/api/cosmic');
+        cosmicData = await res.json();
+        renderCosmic();
+      } catch (e) {
+        console.log('Cosmic data unavailable:', e);
+      }
+    }
+
+    function renderCosmic() {
+      if (!cosmicData) return;
+      const c = cosmicData;
+
+      // Find or create cosmic section
+      let section = document.getElementById('cosmic-section');
+      if (!section) {
+        section = document.createElement('div');
+        section.id = 'cosmic-section';
+        section.className = 'card card-full';
+        section.style.marginBottom = '24px';
+        const mainEl = document.querySelector('.main');
+        const heroEl = document.querySelector('.globe-hero');
+        if (heroEl && heroEl.nextSibling) mainEl.insertBefore(section, heroEl.nextSibling);
+        else mainEl.prepend(section);
+      }
+
+      const solarScore = c.solar?.score || 0;
+      const lunarScore = c.lunar?.score || 0;
+      const lunarPhase = c.lunar?.phase?.name || 'Unknown';
+      const lunarIllum = c.lunar?.phase?.illumination || 0;
+      const kpIndex = c.solar?.raw?.kpIndex ?? '—';
+      const solarFlux = c.solar?.raw?.solarFlux ?? '—';
+      const flareClass = c.solar?.raw?.flareClass || 'None';
+      const combinedScore = c.combined?.score || 0;
+      const impactLevel = c.combined?.label || 'LOW';
+
+      // Moon emoji based on phase
+      let moonEmoji = '🌑';
+      if (lunarIllum > 90) moonEmoji = '🌕';
+      else if (lunarIllum > 70) moonEmoji = '🌖';
+      else if (lunarIllum > 45) moonEmoji = '🌗';
+      else if (lunarIllum > 20) moonEmoji = '🌓';
+      else if (lunarIllum > 5) moonEmoji = '🌒';
+
+      section.innerHTML = `
+        <div class="card-header">
+          <div class="card-title">🪐 Cosmic Influence</div>
+          <div class="card-badge" style="color: ${combinedScore <= -3 ? 'var(--negative)' : 'var(--positive)'}">
+            ${impactLevel}
+          </div>
+        </div>
+        <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;">
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:12px">☀️ Solar Activity</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:${scoreColor(solarScore)}">${formatScore(solarScore)}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:8px">
+              Flux: <span style="color:var(--text-primary)">${solarFlux}</span> sfu · Kp: <span style="color:var(--text-primary)">${kpIndex}</span> · Flare: <span style="color:var(--text-primary)">${flareClass}</span>
+            </div>
+            ${(c.solar?.reasons || []).map(r => `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">• ${r}</div>`).join('')}
+          </div>
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:12px">${moonEmoji} Lunar Phase</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:${scoreColor(lunarScore)}">${formatScore(lunarScore)}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:8px">
+              ${lunarPhase} · <span style="color:var(--text-primary)">${lunarIllum}%</span> illumination
+            </div>
+            ${(c.lunar?.reasons || []).map(r => `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">• ${r}</div>`).join('')}
+          </div>
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:12px">🌌 Combined Impact</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:${scoreColor(combinedScore)}">${formatScore(combinedScore)}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:8px">
+              Cosmic influence on humanity events
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+              Solar + lunar forces affecting
+              <br>infrastructure, behavior, and nature
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    loadCosmic();
+    setInterval(loadCosmic, 300000); // every 5 min
+
+    // Update globe color when data loads
+    const origLoadData = loadData;
+    const origRender = render;
+    const _origRender = render;
+    // Patch render to update globe color
+    const origRenderFn = window.render;
+
+    // Override loadData to also update globe
+    const _loadData = loadData;
+    loadData = async function() {
+      await _loadData();
+      if (data && data.overall) {
+        updateGlobeColor(data.overall.avg_score || 0);
+        // Update glow color
+        const glow = document.getElementById('globe-glow');
+        if (glow) {
+          const c = currentGlobeColor;
+          glow.style.background = `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},0.1) 0%, transparent 70%)`;
+        }
+      }
+    };
 
     // Auto-refresh every 60 seconds
     loadData();
